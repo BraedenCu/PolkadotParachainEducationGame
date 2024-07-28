@@ -48,6 +48,18 @@ The Polkadot parachain provides a secure, decentralized, and transparent platfor
 	•	Custom Smart Contracts: Custom smart contracts were developed to handle the game logic and transactions between players.
 	•	NFT Integration: Implemented proper NFT-minting integration to enhance the game’s functionality and player rewards.
 
+# Demonstration of the Application
+
+![Alt text](/demo/ss1.png)
+
+![Alt text](/demo/ss2.png)
+
+![Alt text](/demo/ss3.png)
+
+![Alt text](/demo/ss4.png)
+
+![Alt text](/demo/ss5.png)
+
 
 ## Available Scripts
 
