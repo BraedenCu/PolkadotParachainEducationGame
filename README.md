@@ -1,4 +1,4 @@
-# Country Guessing Game on Polkadot Parachain
+# EduExpert
 
 ## Short Summary
 
