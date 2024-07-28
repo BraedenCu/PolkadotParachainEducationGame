@@ -50,6 +50,12 @@ The Polkadot parachain provides a secure, decentralized, and transparent platfor
 
 # Demonstration of the Application
 
+## [Watch the demo video at this link](demo/demo.mp4)
+
+## Alternative Link (gdrive): https://drive.google.com/file/d/1tHURnYDF2AbFjwcmhLL_Wjwq3KQvYlli/view
+
+## Images of the application
+
 ![Alt text](/demo/ss1.png)
 
 ![Alt text](/demo/ss2.png)
