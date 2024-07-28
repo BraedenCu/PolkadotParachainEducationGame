@@ -18,7 +18,6 @@ const App = () => {
   const [score1, setScore1] = useState(0);
   const [score2, setScore2] = useState(0);
   const [activePlayer, setActivePlayer] = useState(1);
-  const [winnerMessage, setWinnerMessage] = useState('');
 
   useEffect(() => {
     if (timeLeft > 0 && currentGame) {
@@ -68,11 +67,8 @@ const App = () => {
     setCurrentGame(null);
     setTimeLeft(0);
 
-    // Determine the winner and send the reward
+    // Send reward to the winner on the Polkadot blockchain
     const winner = score1 > score2 ? account1 : account2;
-    const rewardMessage = `Sent wallet ${winner} 1 polkadot`;
-    setWinnerMessage(rewardMessage);
-
     try {
       const provider = new WsProvider('wss://rpc.polkadot.io');
       const api = await ApiPromise.create({ provider });
@@ -188,7 +184,6 @@ const App = () => {
                 </li>
               ))}
             </ul>
-            {winnerMessage && <h3>{winnerMessage}</h3>}
           </div>
         )}
       </div>
