@@ -1,8 +1,5 @@
-// src/App.js
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import ReactionTime from './components/ReactionTime';
 import './index.css';
 
 const App = () => {
@@ -15,16 +12,89 @@ const App = () => {
   const [currentGame, setCurrentGame] = useState(null);
   const [results, setResults] = useState([]);
   const [highScore, setHighScore] = useState({});
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [score1, setScore1] = useState(0);
+  const [score2, setScore2] = useState(0);
+  const [activePlayer, setActivePlayer] = useState(1);
+  const [winnerMessage, setWinnerMessage] = useState('');
 
-  const handleGameEnd = (result) => {
-    if (result !== null) {
-      setResults([...results, { game: 'reactionTime', result }]);
+  useEffect(() => {
+    if (timeLeft > 0 && currentGame) {
+      const timerId = setInterval(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearInterval(timerId);
+    } else if (timeLeft === 0) {
+      handleGameEnd();
     }
-    setHighScore({ ...highScore, reactionTime: Math.max(highScore.reactionTime || 0, result) });
+  }, [timeLeft, currentGame]);
+
+  const startGame = () => {
+    setCurrentGame('arithmetic');
+    setTimeLeft(60);
+    setScore1(0);
+    setScore2(0);
+    setActivePlayer(1);
+    generateQuestion();
+  };
+
+  const generateQuestion = () => {
+    const num1 = Math.floor(Math.random() * 10);
+    const num2 = Math.floor(Math.random() * 10);
+    setQuestion(`${num1} + ${num2}`);
+    setAnswer(num1 + num2);
+  };
+
+  const handleAnswerSubmit = (e) => {
+    e.preventDefault();
+    if (parseInt(e.target.answer.value) === answer) {
+      if (activePlayer === 1) {
+        setScore1(score1 + 1);
+      } else {
+        setScore2(score2 + 1);
+      }
+    }
+    setActivePlayer(activePlayer === 1 ? 2 : 1);
+    generateQuestion();
+    e.target.answer.value = '';
+  };
+
+  const handleGameEnd = async () => {
+    setResults([...results, { score1, score2 }]);
+    setHighScore({
+      ...highScore,
+      arithmetic: Math.max(highScore.arithmetic || 0, score1, score2),
+    });
     setCurrentGame(null);
+    setTimeLeft(0);
+
+    // Determine the winner and send the reward
+    const winner = score1 > score2 ? account1 : account2;
+    const rewardMessage = `Sent wallet ${winner} 1 polkadot`;
+    setWinnerMessage(rewardMessage);
+
+    try {
+      const provider = new WsProvider('wss://rpc.polkadot.io');
+      const api = await ApiPromise.create({ provider });
+
+      // Assuming you have a function to send rewards
+      await sendReward(api, winner);
+    } catch (err) {
+      console.error('Failed to send reward:', err);
+    }
+  };
+
+  const sendReward = async (api, winner) => {
+    // Implement the logic to send a reward to the winner
+    console.log(`Reward sent to ${winner}`);
   };
 
   const fetchBalances = async () => {
+    if (!account1.trim() || !account2.trim()) {
+      setError('Both account addresses are required.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -87,12 +157,21 @@ const App = () => {
       </div>
 
       <div style={{ padding: '20px' }}>
-        <h1>Human Benchmark Test</h1>
+        <h1>Arithmetic Challenge</h1>
         {currentGame ? (
-          <ReactionTime onGameEnd={handleGameEnd} />
+          <div>
+            <h2>Time Left: {timeLeft} seconds</h2>
+            <h3>Current Player: Player {activePlayer}</h3>
+            <p>{question}</p>
+            <form onSubmit={handleAnswerSubmit}>
+              <input type="number" name="answer" autoFocus />
+              <button type="submit">Submit Answer</button>
+            </form>
+            <button onClick={() => setCurrentGame(null)}>Back to Menu</button>
+          </div>
         ) : (
           <div>
-            <button onClick={() => setCurrentGame('reactionTime')}>Reaction Time</button>
+            <button onClick={startGame}>Start Arithmetic Challenge</button>
             <h2>High Scores</h2>
             <ul>
               {Object.entries(highScore).map(([game, score]) => (
@@ -105,13 +184,13 @@ const App = () => {
             <ul>
               {results.map((result, index) => (
                 <li key={index}>
-                  {result.game}: {result.result} ms
+                  Player 1: {result.score1}, Player 2: {result.score2}
                 </li>
               ))}
             </ul>
+            {winnerMessage && <h3>{winnerMessage}</h3>}
           </div>
         )}
-        {currentGame && <button onClick={() => setCurrentGame(null)}>Back to Menu</button>}
       </div>
     </div>
   );
