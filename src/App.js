@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import './index.css';
+import flags from './flags.json'; // Assume this JSON file contains { "countryName": "flagImageURL" } pairs
 
 const App = () => {
   const [account1, setAccount1] = useState('');
@@ -10,14 +11,16 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentGame, setCurrentGame] = useState(null);
-  const [results, setResults] = useState([]);
-  const [highScore, setHighScore] = useState({});
-  const [timeLeft, setTimeLeft] = useState(60);
-  const [question, setQuestion] = useState('');
+  const [question, setQuestion] = useState(null);
   const [answer, setAnswer] = useState('');
   const [score1, setScore1] = useState(0);
   const [score2, setScore2] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(20);
   const [activePlayer, setActivePlayer] = useState(1);
+  const [results, setResults] = useState([]);
+  const [highScore, setHighScore] = useState({});
+  const [winnerMessage, setWinnerMessage] = useState('');
+  const [wager, setWager] = useState(1.1);
 
   useEffect(() => {
     if (timeLeft > 0 && currentGame) {
@@ -29,8 +32,8 @@ const App = () => {
   }, [timeLeft, currentGame]);
 
   const startGame = () => {
-    setCurrentGame('arithmetic');
-    setTimeLeft(60);
+    setCurrentGame('countryGuessing');
+    setTimeLeft(20);
     setScore1(0);
     setScore2(0);
     setActivePlayer(1);
@@ -38,15 +41,14 @@ const App = () => {
   };
 
   const generateQuestion = () => {
-    const num1 = Math.floor(Math.random() * 10);
-    const num2 = Math.floor(Math.random() * 10);
-    setQuestion(`${num1} + ${num2}`);
-    setAnswer(num1 + num2);
+    const countryNames = Object.keys(flags);
+    const randomCountry = countryNames[Math.floor(Math.random() * countryNames.length)];
+    setQuestion(randomCountry);
   };
 
   const handleAnswerSubmit = (e) => {
     e.preventDefault();
-    if (parseInt(e.target.answer.value) === answer) {
+    if (answer.toLowerCase() === question.toLowerCase()) {
       if (activePlayer === 1) {
         setScore1(score1 + 1);
       } else {
@@ -55,34 +57,46 @@ const App = () => {
     }
     setActivePlayer(activePlayer === 1 ? 2 : 1);
     generateQuestion();
-    e.target.answer.value = '';
+    setAnswer('');
   };
 
   const handleGameEnd = async () => {
     setResults([...results, { score1, score2 }]);
     setHighScore({
       ...highScore,
-      arithmetic: Math.max(highScore.arithmetic || 0, score1, score2),
+      countryGuessing: Math.max(highScore.countryGuessing || 0, score1, score2),
     });
     setCurrentGame(null);
     setTimeLeft(0);
 
-    // Send reward to the winner on the Polkadot blockchain
-    const winner = score1 > score2 ? account1 : account2;
+    let winner;
+    let loser;
+    if (score1 > score2) {
+      winner = account1;
+      loser = account2;
+      setWinnerMessage(`${account1} has been sent ${wager} DOT from ${account2}`);
+    } else if (score2 > score1) {
+      winner = account2;
+      loser = account1;
+      setWinnerMessage(`${account2} has been sent ${wager} DOT from ${account1}`);
+    } else {
+      setWinnerMessage(`It's a tie! No one wins.`);
+      return;
+    }
+
     try {
       const provider = new WsProvider('wss://rpc.polkadot.io');
       const api = await ApiPromise.create({ provider });
-
-      // Assuming you have a function to send rewards
-      await sendReward(api, winner);
+      await sendReward(api, winner, loser);
     } catch (err) {
       console.error('Failed to send reward:', err);
+      setError('Failed to send reward.');
     }
   };
 
-  const sendReward = async (api, winner) => {
-    // Implement the logic to send a reward to the winner
-    console.log(`Reward sent to ${winner}`);
+  const sendReward = async (api, winner, loser) => {
+    // Implement the logic to send a reward of the specified wager DOT from the loser to the winner
+    console.log(`${wager} DOT sent from ${loser} to ${winner}`);
   };
 
   const fetchBalances = async () => {
@@ -100,8 +114,8 @@ const App = () => {
       const { data: balanceData1 } = await api.query.system.account(account1);
       const { data: balanceData2 } = await api.query.system.account(account2);
 
-      setBalance1(balanceData1.free.toHuman());
-      setBalance2(balanceData2.free.toHuman());
+      setBalance1((balanceData1.free.toNumber() / 10000000000).toFixed(4));
+      setBalance2((balanceData2.free.toNumber() / 10000000000).toFixed(4));
     } catch (err) {
       setError('Failed to fetch balances. Please check the account addresses and try again.');
     }
@@ -141,49 +155,55 @@ const App = () => {
         <div style={{ marginTop: '20px' }}>
           {balance1 !== null && (
             <p>
-              <strong>Account 1 Balance:</strong> {balance1}
+              <strong>Account 1 Balance:</strong> {balance1} DOT
             </p>
           )}
           {balance2 !== null && (
             <p>
-              <strong>Account 2 Balance:</strong> {balance2}
+              <strong>Account 2 Balance:</strong> {balance2} DOT
             </p>
           )}
         </div>
       </div>
 
       <div style={{ padding: '20px' }}>
-        <h1>Arithmetic Challenge</h1>
+        <h1>Country Guessing Game</h1>
         {currentGame ? (
           <div>
             <h2>Time Left: {timeLeft} seconds</h2>
             <h3>Current Player: Player {activePlayer}</h3>
-            <p>{question}</p>
+            <img src={flags[question]} alt="country flag" style={{ width: '200px', height: 'auto' }} />
             <form onSubmit={handleAnswerSubmit}>
-              <input type="number" name="answer" autoFocus />
+              <input
+                type="text"
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                autoFocus
+              />
               <button type="submit">Submit Answer</button>
             </form>
-            <button onClick={() => setCurrentGame(null)}>Back to Menu</button>
           </div>
         ) : (
           <div>
-            <button onClick={startGame}>Start Arithmetic Challenge</button>
-            <h2>High Scores</h2>
-            <ul>
-              {Object.entries(highScore).map(([game, score]) => (
-                <li key={game}>
-                  {game}: {score}
-                </li>
-              ))}
-            </ul>
+            <label>
+              Wager (DOT):
+              <input
+                type="number"
+                value={wager}
+                onChange={(e) => setWager(parseFloat(e.target.value))}
+                style={{ marginLeft: '10px' }}
+              />
+            </label>
+            <button onClick={startGame}>Start Country Guessing Game</button>
+
             <h2>Results</h2>
-            <ul>
-              {results.map((result, index) => (
-                <li key={index}>
-                  Player 1: {result.score1}, Player 2: {result.score2}
-                </li>
-              ))}
-            </ul>
+            <div>
+              Player 1: {score1}
+            </div>
+            <div>
+              Player 2: {score2}
+            </div>
+            {winnerMessage && <div className="result-box">{winnerMessage}</div>}
           </div>
         )}
       </div>
